@@ -1,6 +1,7 @@
 //int 整數 //float 小數點(浮點數) char 字元 str 字串 void空的 bool 布林 變數型態
 #include"ServoTimer2.h"
 //#include <PID_v1.h>
+#include <math.h>
 #include <TimerOne.h>
 #include "Wire.h"
 #include "sensorbar.h"
@@ -19,9 +20,10 @@ float de=0;//微分項誤差
 float ie=0;//積分項誤差
 float error_befor[5]={0,0,0,0,0};//前項誤差
 float dt =0.1; //單次執行離散週期
-float kp=6.6;
-float ki=1.6;
-float kd=1.5;
+int speed=80;
+float kp=20.6;
+float ki=0.3;
+float kd=6;
 float fix_value =0;//修正量
 char cmd[9] ;
 ServoTimer2 servo1;
@@ -32,17 +34,17 @@ bool ini=true;
 bool start =false;
 bool ArrayStatus[8];
 uint8_t rawValue;
+int mode=0;
 uint8_t block = 0;
 uint8_t part =0;//斷線 共有四段空白
 bool befor_online=true;
 bool turn_done=false;
 //int k ;
 const uint8_t SX1509_ADDRESS = 0x3E;  // SX1509 I2C address (00)
-int speed=30;
+
 SensorBar mySensorBar(SX1509_ADDRESS);
 void readLine() {
   rawValue = mySensorBar.getRaw();
-  delay(10);
 }
 void forward() { //前
   servo1.write(1536+speed);
@@ -61,7 +63,6 @@ void R90(int time_counter,int max_time){
   else{
     servo1.write(1536);
     servo2.write(1538);
-    part=1;
     time_counter=0;
     turn_done = true;
   }
@@ -74,12 +75,12 @@ void L90(int time_counter,int max_time){
   else{
     servo1.write(1536);
     servo2.write(1538);
-    part=1;
     time_counter =0;
     turn_done = true;
   }
 }
 void printf(){
+  if(mode ==0){
     display.clearDisplay();
     display.setTextSize(1);             // 設定文字大小
     display.setTextColor(1);        // 1:OLED預設的顏色(這個會依該OLED的顏色來決定)
@@ -102,29 +103,70 @@ void printf(){
     display.print("timer ");
     display.print(time_counter);        // 要顯示的字串
     display.display();                  // 要有這行才會把文字顯示出來
+    }
+  if(mode==1){//顯示正在PID
+    display.clearDisplay();
+    display.setTextSize(4);             // 設定文字大小
+    display.setTextColor(1);        // 1:OLED預設的顏色(這個會依該OLED的顏色來決定)
+    display.setCursor(0,0);             // 設定起始座標
+    display.print(" PID ");        // 要顯示的字串
+    display.setCursor(0,40);             // 設定起始座標
+    display.print(stage);        // 要顯示的字串
+    display.display();                  // 要有這行才會把文字顯示出來
+    }
+  if(mode==2){//顯示正在直角(左轉)
+    display.clearDisplay();
+    display.setTextSize(4);             // 設定文字大小
+    display.setTextColor(1);        // 1:OLED預設的顏色(這個會依該OLED的顏色來決定)
+    display.setCursor(0,0);             // 設定起始座標
+    display.print(" TR ");        // 要顯示的字串
+    display.setCursor(0,40);             // 設定起始座標
+    display.print(stage);        // 要顯示的字串
+    display.display();                  // 要有這行才會把文字顯示出來
+    }
+  if(mode==3){//顯示正在直角(右轉)
+    display.clearDisplay();
+    display.setTextSize(4);             // 設定文字大小
+    display.setTextColor(1);        // 1:OLED預設的顏色(這個會依該OLED的顏色來決定)
+    display.setCursor(0,0);             // 設定起始座標
+    display.print(" TL ");        // 要顯示的字串
+    display.setCursor(0,40);             // 設定起始座標
+    display.print(stage);        // 要顯示的字串
+    display.display();                  // 要有這行才會把文字顯示出來
+    }
+    /*
     Serial.print("if block ");
     Serial.print(block);
     Serial.print("part ");
     Serial.print(part);
     Serial.print(" stage ");
     Serial.print(stage);
-    Serial.print(" rawValue ");
-    Serial.println(rawValue);
+    Serial.print(" ie ");
+    Serial.print(ie);
+    Serial.print(" de ");
+    Serial.print(de);
+    Serial.print(" error ");
+    Serial.print(error);
+    Serial.print(" fix_value ");
+    Serial.println(fix_value);
+    */
 }
+
 void fix(float v){
-  if(v<-10 && v>-60){
-    servo1.write(1536+speed-int(v));
+  if(v<-10){
+    servo1.write(1536+speed-int(v/2)-int(error*speed/4));
     servo2.write(1538-speed-int(v));
   }
-  else if (v>10 && v< 60){
+  else if (v>10 ){
     servo1.write(1536+speed-int(v));
-    servo2.write(1538-speed-int(v));
+    servo2.write(1538-speed-int(v/2)-int(error*speed/4));
   }
   else if(v<10 || v<-10){
-    forward();
+    servo1.write(1536+speed);
+  servo2.write(1538-speed);
   }
-  Serial.print("rawValue = ");  
-  Serial.println(rawValue); 
+  //Serial.print("rawValue = ");  
+  //Serial.println(rawValue); 
 }
 void setup() {
   servo1.attach(11);
@@ -154,8 +196,9 @@ void setup() {
 void loop(){
   readLine();//讀線狀態，回傳8個位元的值
   //Serial.println(rawValue);
-  rawValue=mySensorBar.getRaw();//.getPosition();
+  //rawValue=mySensorBar.getRaw();//.getPosition();
   printf();
+  /*
   if(rawValue==24){
   digitalWrite(trigPin, LOW); //程式計算出距離值 cm
   delayMicroseconds(1000);
@@ -166,6 +209,7 @@ void loop(){
   duration = pulseIn(echoPin, HIGH);
   cm = (duration/2) / 29.1; 
   }
+  */
 }
 void testdrawstyles(void) {
   display.clearDisplay();
@@ -200,12 +244,13 @@ void PID(){
   } 
   if(stage==1 && ini==false && start==true && rawValue!=0){//進入循跡模式
     block=3;
-    error = log(rawValue)/log(2)-4.58;
-    calculation(error);
+    mode =1;
+    calculation();
     fix(fix_value); 
   }
   if(rawValue ==0 && stage==1 && start){//進入第二階段斷線模式
     block=4;
+    mode =0;
     stop1();
     befor_online=true;
     stage=2;//進入到第二階段
@@ -221,13 +266,14 @@ void PID(){
   }
   else if(stage==2 && rawValue!=0){//如果在第二階段並且碰到線了 開啟PID循線模式
     block=6;
+    mode =1;
     befor_online=true;
-    error = log(rawValue)/log(2)-4.58;
-    calculation(error);
+    calculation();
     fix(fix_value);
   }
   if(stage==2 && part==5){//第二階段完成，檢測是否進入第一次直角彎
     if( rawValue ==224 || rawValue==240){
+    mode =3;
     block=7;
     stop1();
     stage=3;
@@ -237,45 +283,57 @@ void PID(){
   if(stage==3 && part==0 && turn_done==false){//執行左轉
     block=8;
     time_counter++;        
-    L90(time_counter,5);
+    L90(time_counter,8);
    }
-  if(stage==3 && part==1 && turn_done==true){//結束左轉
+  if(stage==3 && turn_done==true){//結束左轉
     block=9;
-    part =2;
+    part =1;
     turn_done=false;
     stop1();
+    time_counter=0;
    }
-  if(stage==3 && part==2){//第一次左轉後的循跡
+  if(stage==3 && part==1 && rawValue!=224 && rawValue!=240 && turn_done==false){//第一次左轉後的循跡
+    mode =1;
     block=10;
+    Serial.println("第一次左轉後的循跡");
     befor_online=true;
-    error = log(rawValue)/log(2)-4.58;
-    calculation(error);
+    Serial.println(rawValue);
+    //error = log(rawValue)/log(2)-4.58;
+    calculation();
     fix(fix_value);
   }
-  if(stage==3 && part==2){//檢測是否進入第二次直角彎
+  if(stage==3 && part==1){//檢測是否進入第二次直角彎
+    mode =3;
     if( rawValue ==224 || rawValue==240){
+    Serial.println("檢測是否進入第二次直角彎");
     block=11;
     stop1();
-    part = 3;
+    part = 2;
     }
   }
-  if(stage==3 && part==3 && turn_done==false){//執行第二次左轉
+  if(stage==3 && part==2 && turn_done==false){//執行第二次左轉
     block=12;
+    mode=0;
     time_counter++;        
-    L90(time_counter,5);
+    L90(time_counter,80);
+    
+    Serial.println("執行第二次左轉");
    }
-  if(stage==3 && part==1 && turn_done==true){//停止左轉
+  if(stage==3 && part==2 && turn_done==true){//停止左轉
+  Serial.println("停止左轉");
     block=13;
-    part =2;
+    part =3;
+    time_counter=0;
     turn_done=false;
     stop1();
    }
-  if(stage==3 && part==2){ //第二次左轉後的循跡
+  if(stage==3 && part==3){ //第二次左轉後的循跡
+  Serial.println("第二次左轉後的循跡");
+    mode =1;
     block=14;
     befor_online=true;
-    kp=6.9;
-    error = log(rawValue)/log(2)-4.58;
-    calculation(error);
+    //error = log(rawValue)/log(2)-4.58;
+    calculation();
     fix(fix_value);
   }
   /*
@@ -300,9 +358,20 @@ void PID(){
    }
    */
 }
-void calculation(float cerror){
+void calculation(){
+  if(rawValue<0)
+  error = log(-1*rawValue)/log(2)-4.58;  
+  else if(rawValue==0)
+  error = 0;
+  else
+  error =log(rawValue)/log(2)-4.58;
   ie = ie+(error*dt);
-  de = (cerror-error_befor[0])/dt;
-  error_befor[0]=cerror;
-  fix_value = kp*cerror+ki*ie+kd*de;
+  if(error-error_befor[0]!=0){
+  de = (error-error_befor[0])/dt;
+  }
+  else if(error-error_befor[0]==0){
+    de=0;
+  }
+  error_befor[0]=error;
+  fix_value = kp*error+ki*ie+kd*de;
 }
