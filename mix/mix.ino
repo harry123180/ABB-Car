@@ -39,6 +39,7 @@ uint8_t block = 0;
 uint8_t part =0;//斷線 共有四段空白
 bool befor_online=true;
 bool turn_done=false;
+int8_t light=0;
 //int k ;
 const uint8_t SX1509_ADDRESS = 0x3E;  // SX1509 I2C address (00)
 
@@ -171,6 +172,7 @@ void fix(float v){
 void setup() {
   servo1.attach(11);
   servo2.attach(13);
+  pinMode(A2,INPUT);
   stop1();
   Serial.begin(115200);  // start serial for output
   Serial.println("Program started.");
@@ -196,20 +198,12 @@ void setup() {
 void loop(){
   readLine();//讀線狀態，回傳8個位元的值
   //Serial.println(rawValue);
+  
+  light = analogRead(A2);
+  Serial.println(light);
   //rawValue=mySensorBar.getRaw();//.getPosition();
   printf();
-  /*
-  if(rawValue==24){
-  digitalWrite(trigPin, LOW); //程式計算出距離值 cm
-  delayMicroseconds(1000);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(1000);
-  digitalWrite(trigPin, LOW);
-  pinMode(echoPin, INPUT);
-  duration = pulseIn(echoPin, HIGH);
-  cm = (duration/2) / 29.1; 
-  }
-  */
+  
 }
 void testdrawstyles(void) {
   display.clearDisplay();
@@ -222,11 +216,11 @@ void testdrawstyles(void) {
 void PID(){
   
   // 屏蔽測試
-  if(rawValue==255 && ini==true){//停在起跑線上的條件
+  if(light<15 && ini==true){//停在起跑線上的條件
     block = 1;
     time_counter++;//每跳1=0.1sec
     stop1();
-    if(time_counter==50)
+    if(time_counter==10)
     {
       stage=1;//跳掉下一階段
       time_counter =0;//計時歸零
@@ -315,7 +309,7 @@ void PID(){
     block=12;
     mode=0;
     time_counter++;        
-    L90(time_counter,80);
+    L90(time_counter,8);
     
     Serial.println("執行第二次左轉");
    }
