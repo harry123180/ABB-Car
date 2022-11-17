@@ -80,6 +80,18 @@ void L90(int time_counter,int max_time){
     turn_done = true;
   }
 }
+void goF(int time_counter,int max_time){
+  if(time_counter <max_time){
+  servo1.write(1536+speed);
+  servo2.write(1538-speed);
+  }
+  else{
+    servo1.write(1536);
+    servo2.write(1538);
+    time_counter =0;
+    turn_done = true;
+  }
+}
 void printf(){
   if(mode ==0){
     display.clearDisplay();
@@ -309,7 +321,7 @@ void PID(){
     block=12;
     mode=0;
     time_counter++;        
-    L90(time_counter,8);
+    L90(time_counter,9);
     
     Serial.println("執行第二次左轉");
    }
@@ -330,8 +342,8 @@ void PID(){
     calculation();
     fix(fix_value);
   }
-  /*
-  if(stage==3 && part==2){//檢測是否進入第一次右轉直角彎
+  
+  if(stage==3 && part==3){//檢測是否進入第一次右轉直角彎
     if( rawValue ==15 || rawValue==7){
     block=15;
     stop1();//停止
@@ -342,15 +354,152 @@ void PID(){
   if(stage==4 && part==0 && turn_done==false){//執行第一次右轉
     block=16;
     time_counter++;        
-    R90(time_counter,5);
+    R90(time_counter,8);
    }
-  if(stage==4 && part==0 && turn_done==true){//停止左轉
+  if(stage==4 && part==0 && turn_done==true){//停止右轉
     block=17;
     part =1;
     turn_done=false;
     stop1();
    }
-   */
+  if(stage==4 && part==1){ //第一次右轉轉後的循跡
+  Serial.println("第一次右轉轉後的循跡");
+  if(rawValue==0){//繞過寶特瓶
+    stop1();
+    stage=5;
+    part =0;
+  }
+  if(rawValue!=0){
+    mode =1;
+    block=18;
+    befor_online=true;
+    //error = log(rawValue)/log(2)-4.58;
+    calculation();
+    fix(fix_value);
+    }
+  }
+  if(stage ==5 && part ==0 && turn_done==false){//左轉
+  time_counter++; 
+  L90(time_counter,8);    
+  }
+  if(stage ==5&& part==0 && turn_done==true ){//清除狀態
+    turn_done=false;
+    part=1;    
+  }
+  if(stage ==5&& part==1 && turn_done==false ){//直走一段路
+    time_counter++; 
+    goF(time_counter,10);   
+  }
+  if(stage ==5&& part==1 && turn_done==true ){//清除狀態
+    turn_done=false;
+    part=2;    
+  }
+  if(stage ==5&& part==2 && turn_done==false ){//右轉
+    time_counter++; 
+    R90(time_counter,8);   
+  }
+  if(stage ==5&& part==2 && turn_done==true ){//清除狀態
+    turn_done=false;
+    part=3;    
+  }
+  if(stage ==5&& part==3 && turn_done==false ){//直走一段路
+    time_counter++; 
+    goF(time_counter,40);   
+  }
+  if(stage ==5&& part==3 && turn_done==true ){//清除狀態
+    turn_done=false;
+    part=4;  
+  }
+  if(stage ==5&& part==4 && turn_done==false ){//右轉
+    time_counter++; 
+    R90(time_counter,8);   
+  }
+  if(stage ==5&& part==4 && turn_done==true ){//清除狀態
+    turn_done=false;
+    part=5;  
+  }
+  if(stage ==5&& part==5 && turn_done==false ){//直走一段路
+    time_counter++; 
+    goF(time_counter,40);   
+  }
+  if(stage ==5&& part==5 && turn_done==true ){//清除狀態
+    turn_done=false;
+    stop1();
+    part=6;  
+  }
+  if(stage ==5 && part ==6 && turn_done==false){//左轉
+  time_counter++; 
+  L90(time_counter,8);    
+  }
+  if(stage ==5&& part==6 && turn_done==true ){//清除狀態
+    turn_done=false;
+    stop1();
+    part=7;  
+  }
+  if(stage==5 && part==7){ //右半邊開始的循跡
+    mode =1;
+    block=14;
+    befor_online=true;
+    //error = log(rawValue)/log(2)-4.58;
+    calculation();
+    fix(fix_value);
+  }
+   if(stage==5 && part==7){//檢測是否進入左轉直角彎
+    if( rawValue ==224 || rawValue==240){
+    mode =3;
+    block=7;
+    stop1();
+    stage=6;
+    part = 0;
+    }
+  }
+  if(stage==6 && part==0 && turn_done==false){//執行左轉
+    block=8;
+    time_counter++;        
+    L90(time_counter,8);
+   }
+  if(stage==6 && turn_done==true){//結束左轉
+    block=9;
+    part =1;
+    turn_done=false;
+    stop1();
+    time_counter=0;
+   }
+  if(stage==6 && part==1 && rawValue!=224 && rawValue!=240 && turn_done==false){//左轉後的循跡
+    mode =1;
+    block=10;
+    befor_online=true;
+    calculation();
+    fix(fix_value);
+  }
+   if(stage==6 && part==1){//檢測是否進入左轉直角彎
+    if( rawValue ==224 || rawValue==240){
+    mode =3;
+    block=7;
+    stop1();
+    stage=7;
+    part = 2;
+    }
+  }
+  if(stage==7 && part==2 && turn_done==false){//執行左轉
+    block=8;
+    time_counter++;        
+    L90(time_counter,8);
+   }
+  if(stage==7 && turn_done==true){//結束左轉
+    block=9;
+    part =3;
+    turn_done=false;
+    stop1();
+    time_counter=0;
+   }
+  if(stage==7 && part==3 && rawValue!=224 && rawValue!=240 && turn_done==false){//左轉後的循跡
+    mode =1;
+    block=10;
+    befor_online=true;
+    calculation();
+    fix(fix_value);
+  }
 }
 void calculation(){
   if(rawValue<0)
